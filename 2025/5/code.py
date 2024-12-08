@@ -5,7 +5,7 @@ def extract_tuples(text: str):
     text = text.strip().replace("\n", " ")
 
     numbers = re.findall(r"\d+", text)
-    return tuple(map(int, numbers))
+    return list(map(int, numbers))
 
 def reorder_list(nombres, contraintes):
     contraintes = [(x, y) for (x, y) in contraintes if x in nombres and y in nombres]

@@ -4,9 +4,8 @@ from itertools import product
 def extract_tuples(text: str):
     text = text.strip().replace("\n", " ")
 
-    # Extract all numbers from the text
     numbers = re.findall(r"\d+", text)
-    return tuple(map(int, numbers))
+    return list(map(int, numbers))
 
 def calcul_gauche_droite(nombres, ops):
     resultat = nombres[0]
