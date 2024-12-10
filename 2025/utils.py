@@ -42,20 +42,20 @@ class Board:
     def __repr__(self):
         return str(self.board)
     
-    def get_at(self, point):
-        if point is not Point:
+    def get_at(self, point: Point) -> int|str:
+        if not isinstance(point, Point):
             point = Point(*point)
         return self.board[point]
     
-    def set_at(self, point, value):
-        if point is not Point:
+    def set_at(self, point: Point, value: int|str):
+        if not isinstance(point, Point):
             point = Point(*point)
         self.board[point] = value
     
-    def get_positions(self, char):
+    def get_positions(self, char: int|str) -> list[Point]:
         return [pos for pos, c in self.board.items() if c == char]
     
-    def get_continuous_positions(self, start, direction, char=None):
+    def get_continuous_positions(self, start: Point, direction: Point, char:int|str=None) -> list[Point]:
         positions = []
         current = start + direction
         while current in self.board:
@@ -66,13 +66,14 @@ class Board:
                 break
         return positions
     
-    def get_adjacent_positions(self, point, with_diagonals=False):
+    def get_adjacent_positions(self, point: Point, with_diagonals=False) -> list[Point]:
         directions = [Point(0, 1), Point(0, -1), Point(1, 0), Point(-1, 0)]
         if with_diagonals:
             directions += [Point(1, 1), Point(1, -1), Point(-1, 1), Point(-1, -1)]
-        return [point + direction for direction in directions]
+        points = [point + direction for direction in directions if point + direction in self.board]
+        return points
     
-    def get_continuous_path(self, start, char, with_diagonals=False):
+    def get_continuous_path(self, start: Point, char: int|str, with_diagonals=False) -> list[Point]:
         directions = [Point(0, 1), Point(0, -1), Point(1, 0), Point(-1, 0)]
         if with_diagonals:
             directions += [Point(1, 1), Point(1, -1), Point(-1, 1), Point(-1, -1)]
