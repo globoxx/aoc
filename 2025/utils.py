@@ -30,6 +30,9 @@ class Point:
     def is_in_grid(self, grid):
         return 0 <= self.y < len(grid) and 0 <= self.x < len(grid[0])
     
+    def get_adjacent_positions(self):
+        return [Point(self.y, self.x + 1), Point(self.y, self.x - 1), Point(self.y + 1, self.x), Point(self.y - 1, self.x)]
+    
     
 class Board:
     def __init__(self, lines):
