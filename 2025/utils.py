@@ -11,6 +11,9 @@ class Point:
     
     def __sub__(self, other):
         return Point(self.y - other.y, self.x - other.x)
+    
+    def __mul__(self, scalar):
+        return Point(self.y * scalar, self.x * scalar)
         
     def __hash__(self):
         return hash((self.x, self.y))
@@ -54,15 +57,29 @@ class Board:
         if not isinstance(point, Point):
             point = Point(*point)
         self.board[point] = value
+        
+    def show(self):
+        for y in range(max(p.y for p in self.board) + 1):
+            for x in range(max(p.x for p in self.board) + 1):
+                print(self.get_at(Point(y, x)), end='')
+            print()
+            
+    def get_width(self):
+        return max(p.x for p in self.board) + 1
+    
+    def get_height(self):
+        return max(p.y for p in self.board) + 1
     
     def get_positions(self, char: int|str) -> list[Point]:
         return [pos for pos, c in self.board.items() if c == char]
     
-    def get_continuous_positions(self, start: Point, direction: Point, char:int|str=None) -> list[Point]:
-        positions = []
+    def get_continuous_positions(self, start: Point, direction: Point, char:list[int|str]|str=None) -> list[Point]:
+        if not isinstance(char, list) and char is not None:
+            char = [char]
+        positions = [start]
         current = start + direction
         while current in self.board:
-            if char is None or self.get_at(current) == char:
+            if char is None or self.get_at(current) in char:
                 positions.append(current)
                 current += direction
             else:
