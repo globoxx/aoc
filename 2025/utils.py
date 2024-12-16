@@ -45,6 +45,9 @@ class Point:
     def get_adjacent_positions(self):
         return [Point(self.y, self.x + 1), Point(self.y, self.x - 1), Point(self.y + 1, self.x), Point(self.y - 1, self.x)]
     
+    def get_direction(self, other):
+        return Point(other.y - self.y, other.x - self.x)
+    
     
 class Board:
     def __init__(self, lines):
@@ -165,19 +168,14 @@ class Board:
                 queue.append((adjacent, path + [adjacent]))
         return []
     
-    def get_shortest_path_astar(self, start: Point, end: Point, walls: list[Point], rotation_cost=1000):
-        def heuristic(a, b):
-            # Distance de Manhattan comme heuristique de base
+    def get_shortest_paths_astar(self, start: Point, end: Point, walls: list[Point]) -> list[list[Point]]:
+        # Had to find snippets of code for A* algorithm
+        
+        def heuristic(a: Point, b: Point) -> int:
             return a.manhattan_distance(b)
         
-        def get_direction(from_point, to_point):
-            # Calcule la direction du mouvement
-            diff = to_point - from_point
-            return Point(diff.y, diff.x)
-        
-        # Structure pour stocker l'état de recherche
         class SearchState:
-            def __init__(self, point, path, direction, rotation_count, total_cost):
+            def __init__(self, point: Point, path: list[Point], direction: Point, rotation_count: int, total_cost: int):
                 self.point = point
                 self.path = path
                 self.direction = direction
@@ -185,16 +183,13 @@ class Board:
                 self.total_cost = total_cost
             
             def __lt__(self, other):
-                # Comparaison basée sur le coût total
                 return self.total_cost < other.total_cost
         
-        # Ensemble pour tracker les états visités
-        visited = set()
-        
-        # File de priorité pour la recherche
+        visited = {}
         open_set = []
+        all_shortest_paths = []
+        min_total_cost = float('inf')
         
-        # État initial
         initial_state = SearchState(
             point=start, 
             path=[start], 
@@ -205,39 +200,38 @@ class Board:
         heapq.heappush(open_set, initial_state)
         
         while open_set:
-            current_state = heapq.heappop(open_set)
+            current_state: SearchState = heapq.heappop(open_set)
             
-            # Vérification de l'arrivée
+            if current_state.total_cost > min_total_cost:
+                break
+            
             if current_state.point == end:
-                return current_state.path
+                if not all_shortest_paths or current_state.total_cost <= min_total_cost:
+                    all_shortest_paths.append(current_state.path)
+                    min_total_cost = min(min_total_cost, current_state.total_cost)
+                continue
             
-            # Éviter les états déjà visités
             state_key = (current_state.point, current_state.direction)
             if state_key in visited:
-                continue
-            visited.add(state_key)
+                if visited[state_key] < current_state.total_cost:
+                    continue
+            visited[state_key] = current_state.total_cost
             
-            # Explorer les positions adjacentes
             for adjacent in self.get_adjacent_positions(current_state.point):
-                # Vérifier les murs et les points déjà visités
-                if adjacent in walls:
+                if adjacent in walls or adjacent in current_state.path:
                     continue
                 
-                # Calculer la nouvelle direction
-                new_direction = get_direction(current_state.path[-1], adjacent)
+                new_direction = current_state.path[-1].get_direction(adjacent)
                 
-                # Calculer le nombre de rotations
                 rotation_count = current_state.rotation_count
                 if current_state.direction and new_direction != current_state.direction:
                     rotation_count += 1
                 
-                # Calculer le coût total
                 base_cost = len(current_state.path)
-                rotation_penalty = rotation_count * rotation_cost
+                rotation_penalty = rotation_count * 1000
                 heuristic_cost = heuristic(adjacent, end)
                 total_cost = base_cost + rotation_penalty + heuristic_cost
                 
-                # Créer le nouvel état
                 new_state = SearchState(
                     point=adjacent,
                     path=current_state.path + [adjacent],
@@ -248,116 +242,12 @@ class Board:
                 
                 heapq.heappush(open_set, new_state)
     
-        return []
-    
-    def get_all_shortest_paths(self, start: Point, end: Point, walls: list[Point], rotation_cost=1000):
-        def heuristic(a, b):
-            return a.manhattan_distance(b)
-        
-        def get_direction(from_point, to_point):
-            diff = to_point - from_point
-            return Point(diff.y, diff.x)
-        
-        class SearchState:
-            def __init__(self, point, path, direction, rotation_count, total_cost):
-                self.point = point
-                self.path = path
-                self.direction = direction
-                self.rotation_count = rotation_count
-                self.total_cost = total_cost
-            
-            def __lt__(self, other):
-                return self.total_cost < other.total_cost
-            
-            def __eq__(self, other):
-                return self.total_cost == other.total_cost
-        
-        # Stocker tous les chemins avec le coût minimal
-        min_cost_paths = []
-        
-        # Ensemble pour éviter les doublons
-        unique_paths = set()
-        
-        open_set = []
-        
-        initial_state = SearchState(
-            point=start, 
-            path=[start], 
-            direction=None, 
-            rotation_count=0, 
-            total_cost=heuristic(start, end)
-        )
-        heapq.heappush(open_set, initial_state)
-        
-        min_total_cost = float('inf')
-        
-        while open_set:
-            current_state = heapq.heappop(open_set)
-            
-            # Arrêt si on dépasse le coût minimal
-            if current_state.total_cost > min_total_cost:
-                break
-            
-            # Vérification de l'arrivée
-            if current_state.point == end:
-                # Mise à jour du coût minimal si nécessaire
-                if current_state.total_cost < min_total_cost:
-                    min_total_cost = current_state.total_cost
-                    min_cost_paths.clear()
-                    unique_paths.clear()
-                
-                # Conversion du chemin en tuple pour hashage
-                path_tuple = tuple(current_state.path)
-                
-                # Ajouter uniquement les chemins uniques
-                if path_tuple not in unique_paths:
-                    min_cost_paths.append(current_state.path)
-                    unique_paths.add(path_tuple)
-                
-                continue
-            
-            # Explorer les positions adjacentes
-            for adjacent in self.get_adjacent_positions(current_state.point):
-                # Vérifier les murs
-                if adjacent in walls:
-                    continue
-                
-                # Calculer la nouvelle direction
-                new_direction = get_direction(current_state.path[-1], adjacent)
-                
-                # Calculer le nombre de rotations
-                rotation_count = current_state.rotation_count
-                if current_state.direction and new_direction != current_state.direction:
-                    rotation_count += 1
-                
-                # Calculer le coût total
-                base_cost = len(current_state.path)
-                rotation_penalty = rotation_count * rotation_cost
-                heuristic_cost = heuristic(adjacent, end)
-                total_cost = base_cost + rotation_penalty + heuristic_cost
-                
-                # Créer le nouvel état
-                new_state = SearchState(
-                    point=adjacent,
-                    path=current_state.path + [adjacent],
-                    direction=new_direction,
-                    rotation_count=rotation_count,
-                    total_cost=total_cost
-                )
-                
-                # N'ajouter que si le coût est inférieur ou égal au minimum
-                if total_cost <= min_total_cost:
-                    heapq.heappush(open_set, new_state)
-        
-        return min_cost_paths
+        return all_shortest_paths
     
     def get_all_paths(self, start: Point, end: Point, walls: list[Point], with_diagonals=False, max_paths=None, max_depth=None) -> list[list[Point]]:
         def dfs(current, path):
-            
             if max_depth is not None and len(path) > max_depth:
                 return
-        
-            # Vérification du nombre maximal de chemins
             if max_paths is not None and len(paths) >= max_paths:
                 return
         
@@ -400,8 +290,6 @@ def get_oriented_groups(points: list[tuple[Point, Point]]) -> list[list[tuple[Po
     return groups
 
 def merge_intervals(intervals: list[list]) -> list[list]:
-    """ Takes intervals in the form [[a, b][c, d][d, e]...]
-    Intervals can overlap.  Compresses to minimum number of non-overlapping intervals. """
     intervals.sort()
     stack = []
     stack.append(intervals[0])
