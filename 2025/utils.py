@@ -1,4 +1,5 @@
 import heapq
+import numpy as np
 
 
 class Point:
@@ -267,6 +268,27 @@ class Board:
         dfs(start, [start])
         return paths
     
+    def get_sub_board(self, top_left: Point, bottom_right: Point):
+        assert top_left.y <= bottom_right.y and top_left.x <= bottom_right.x
+        lines = [self.lines[y][top_left.x:bottom_right.x + 1] for y in range(top_left.y, bottom_right.y + 1)]
+        return Board(lines)
+        
+    
+    def to_networkx(self):
+        import networkx as nx
+        G = nx.Graph()
+        for point, value in self.board.items():
+            G.add_node(point, value=value)
+            for adjacent in self.get_adjacent_positions(point):
+                G.add_edge(point, adjacent)
+        return G
+    
+    def find_cliques(self):
+        import networkx as nx
+        G = self.to_networkx()
+        cliques = list(nx.find_cliques(G))
+        return cliques
+    
         
 def get_groups(points: list[Point]) -> list[list[Point]]:
     groups = get_oriented_groups([(point, Point(0, 0)) for point in points])
@@ -302,3 +324,120 @@ def merge_intervals(intervals: list[list]) -> list[list]:
             stack.append(interval)
       
     return stack
+
+    
+def find_optimal_assignment(matrix: list[list[int]]) -> list[tuple[int, int]]:
+    n = len(matrix)
+    m = len(matrix[0])
+    
+    for i in range(n):
+        min_value = min(matrix[i])
+        for j in range(m):
+            matrix[i][j] -= min_value
+            
+    for j in range(m):
+        min_value = min(matrix[i][j] for i in range(n))
+        for i in range(n):
+            matrix[i][j] -= min_value
+            
+    assignment = []
+    for i in range(n):
+        for j in range(m):
+            if matrix[i][j] == 0:
+                assignment.append((i, j))
+                break
+    return assignment
+
+def compute_polygon_area(points: list[Point]) -> float:
+    #A function to apply the Shoelace algorithm
+    n = len(points)
+    sum1 = 0
+    sum2 = 0
+
+    for i in range(0, n-1):
+        sum1 = sum1 + points[i][0] *  points[i+1][1]
+        sum2 = sum2 + points[i][1] *  points[i+1][0]
+
+    sum1 = sum1 + points[n-1][0]*points[0][1]   
+    sum2 = sum2 + points[0][0]*points[n-1][1]   
+
+    area = abs(sum1 - sum2) / 2
+    return area
+
+
+def find_min_x(num, rem):
+    # Chinese Remainder Theorem
+    def gcd_extended(a, b):
+        if a == 0:
+            return b, 0, 1
+        gcd, x1, y1 = gcd_extended(b % a, a)
+        x = y1 - (b // a) * x1
+        y = x1
+        return gcd, x, y
+
+    prod = 1
+    for n in num:
+        prod *= n
+
+    result = 0
+    for i in range(len(num)):
+        prod_i = prod // num[i]
+        _, inv_i, _ = gcd_extended(prod_i, num[i])
+        result += rem[i] * prod_i * inv_i
+
+    return result % prod
+    
+    
+def needle_wunsch(x, y, match = 1, mismatch = 1, gap = 1):
+    nx = len(x)
+    ny = len(y)
+    # Optimal score at each possible pair of characters.
+    F = np.zeros((nx + 1, ny + 1))
+    F[:,0] = np.linspace(0, -nx * gap, nx + 1)
+    F[0,:] = np.linspace(0, -ny * gap, ny + 1)
+    # Pointers to trace through an optimal aligment.
+    P = np.zeros((nx + 1, ny + 1))
+    P[:,0] = 3
+    P[0,:] = 4
+    # Temporary scores.
+    t = np.zeros(3)
+    for i in range(nx):
+        for j in range(ny):
+            if x[i] == y[j]:
+                t[0] = F[i,j] + match
+            else:
+                t[0] = F[i,j] - mismatch
+            t[1] = F[i,j+1] - gap
+            t[2] = F[i+1,j] - gap
+            tmax = np.max(t)
+            F[i+1,j+1] = tmax
+            if t[0] == tmax:
+                P[i+1,j+1] += 2
+            if t[1] == tmax:
+                P[i+1,j+1] += 3
+            if t[2] == tmax:
+                P[i+1,j+1] += 4
+    # Trace through an optimal alignment.
+    i = nx
+    j = ny
+    rx = []
+    ry = []
+    while i > 0 or j > 0:
+        if P[i,j] in [2, 5, 6, 9]:
+            rx.append(x[i-1])
+            ry.append(y[j-1])
+            i -= 1
+            j -= 1
+        elif P[i,j] in [3, 5, 7, 9]:
+            rx.append(x[i-1])
+            ry.append('-')
+            i -= 1
+        elif P[i,j] in [4, 6, 7, 9]:
+            rx.append('-')
+            ry.append(y[j-1])
+            j -= 1
+    # Reverse the strings.
+    rx = ''.join(rx)[::-1]
+    ry = ''.join(ry)[::-1]
+    return rx, ry
+    
