@@ -28,7 +28,7 @@ class Point:
     def __repr__(self):
         return f'({self.x}, {self.y})'
     
-    def manhattan_distance(self, other):
+    def manhattan_distance(self, other) -> int:
         return abs(self.x - other.x) + abs(self.y - other.y)
     
     def chebyshev_distance(self, other):
@@ -60,6 +60,7 @@ class Board:
         self.board = board
         self.width = len(lines[0])
         self.height = len(lines)
+    
         
     def __repr__(self):
         return str(self.board)
@@ -169,8 +170,44 @@ class Board:
                 queue.append((adjacent, path + [adjacent]))
         return []
     
-    def get_shortest_paths_astar(self, start: Point, end: Point, walls: list[Point]) -> list[list[Point]]:
+    def get_shortest_path_astar(self, start: Point, end: Point, walls: set[Point], with_diagonals=False):
+        def heuristic(a: Point, b: Point) -> int:
+            return a.manhattan_distance(b)
+        
+        open_set = [(0, start, [])]
+        closed_set = set()
+        best_known_paths = {start: []}
+        
+        while open_set:
+            _, current, path = heapq.heappop(open_set)
+                        
+            if current == end:
+                return path
+            
+            if current in closed_set:
+                continue
+            
+            closed_set.add(current)
+            
+            for adjacent in self.get_adjacent_positions(current, with_diagonals):
+                if adjacent in walls or adjacent in closed_set:
+                    continue
+                                
+                new_path = path + [adjacent]
+                
+                if adjacent in best_known_paths and len(new_path) >= len(best_known_paths[adjacent]):
+                    continue
+                
+                best_known_paths[adjacent] = new_path
+                priority = len(new_path) + heuristic(adjacent, end)
+                                
+                heapq.heappush(open_set, (priority, adjacent, new_path))
+                        
+        return []
+    
+    def get_shortest_paths_astar(self, start: Point, end: Point, walls: set[Point], rotation_cost=0) -> list[list[Point]]:
         # Had to find snippets of code for A* algorithm
+        # Buggy implementation, very slow
         
         def heuristic(a: Point, b: Point) -> int:
             return a.manhattan_distance(b)
@@ -219,7 +256,7 @@ class Board:
             visited[state_key] = current_state.total_cost
             
             for adjacent in self.get_adjacent_positions(current_state.point):
-                if adjacent in walls or adjacent in current_state.path:
+                if adjacent in walls or adjacent not in self.board or adjacent in current_state.path:
                     continue
                 
                 new_direction = current_state.path[-1].get_direction(adjacent)
@@ -229,7 +266,7 @@ class Board:
                     rotation_count += 1
                 
                 base_cost = len(current_state.path)
-                rotation_penalty = rotation_count * 1000
+                rotation_penalty = rotation_count * rotation_cost
                 heuristic_cost = heuristic(adjacent, end)
                 total_cost = base_cost + rotation_penalty + heuristic_cost
                 
